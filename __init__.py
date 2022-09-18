@@ -24,6 +24,8 @@ bl_info = {
 }
 
 import warnings
+
+from .property_groups.fast64_settings import DreamTextureFast64Settings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
 import bpy
@@ -87,6 +89,7 @@ def register():
     bpy.types.Scene.init_img = PointerProperty(name="Init Image", type=bpy.types.Image)
     bpy.types.Scene.init_mask = PointerProperty(name="Init Mask", type=bpy.types.Image)
     bpy.types.Scene.dream_textures_history_selection = IntProperty()
+    bpy.types.Scene.dream_textures_fast64 = PointerProperty(type=DreamTextureFast64Settings)
     
     bpy.types.NODE_HT_header.append(shader_menu_draw)
     bpy.types.IMAGE_HT_header.append(image_menu_draw)

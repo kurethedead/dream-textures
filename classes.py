@@ -5,6 +5,7 @@ from .operators.help_panel import HelpPanel
 from .operators.view_history import RecallHistoryEntry, SCENE_UL_HistoryList, ViewHistory
 from .operators.inpaint_area_brush import InpaintAreaStroke
 from .property_groups.dream_prompt import DreamPrompt
+from .property_groups.fast64_settings import DreamTextureFast64Settings
 
 from .preferences import OpenGitDownloads, OpenHuggingFace, OpenWeightsDirectory, OpenRustInstaller, ValidateInstallation, StableDiffusionPreferences
 from .shader_menu import ShaderMenu
@@ -21,6 +22,7 @@ CLASSES = (
 )
 
 PREFERENCE_CLASSES = (
+                      DreamTextureFast64Settings,
                       DreamPrompt,
                       OpenGitDownloads,
                       InstallDependencies,

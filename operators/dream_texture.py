@@ -43,6 +43,22 @@ class DreamTexture(bpy.types.Operator):
         else:
             return context.window_manager.invoke_props_dialog(self)
 
+    def draw_fast64(self, context, layout):
+        settings = context.scene.dream_textures_fast64
+        fast64_box = layout.box()
+        fast64_box_heading = fast64_box.row()
+        fast64_box_heading.prop(settings, "enable")
+        fast64_box_heading.label(text="Fast64")
+        if settings.enable:
+            fast64_box_content = fast64_box.column()
+            fast64_box_content.row().prop(settings, "dimensions", text="Resize")
+            fast64_box_content.prop(settings, "texture_index", text="Index")
+            fast64_box_content.label(text="If in 3D Viewport, an object must be selected.")
+            fast64_box_content.label(text="The texture will be set on the active material.")
+            fast64_box_content.label(text="Visuals may not update correctly. (ex. clamp)", icon = "ERROR")
+            fast64_box_content.label(text="In this case try toggling a texture setting.")
+
+
     def draw(self, context):
         layout = self.layout
         
@@ -85,6 +101,8 @@ class DreamTexture(bpy.types.Operator):
                 init_img_box.template_ID(context.scene, "init_img", open="image.open")
                 init_img_box.prop(scene.dream_textures_prompt, "strength")
                 init_img_box.prop(scene.dream_textures_prompt, "fit")
+
+        self.draw_fast64(context, layout)
 
         advanced_box = layout.box()
         advanced_box_heading = advanced_box.row()
@@ -141,6 +159,66 @@ class DreamTexture(bpy.types.Operator):
         last_data_block = None
         scene = context.scene
 
+        def get_f3d_material():
+            obj = context.view_layer.objects.active
+
+            material = None
+            if hasattr(context, "material"):
+                material = context.material
+            elif obj is not None:
+                material = obj.active_material
+            else:
+                print("Fast64: No active object.")
+            
+            f3d_material = None
+            if material is not None and material.is_f3d:
+                f3d_material = material.f3d_mat
+            else:
+                print("Fast64: No active fast64 material.")
+            
+            return material, f3d_material
+
+        def apply_fast64(image : bpy.types.Image):
+            if image is None:
+                return
+            
+            settings = context.scene.dream_textures_fast64
+            material, f3d_material = get_f3d_material()
+            
+            image.scale(settings.dimensions[0], settings.dimensions[1])
+
+            if f3d_material is not None:
+                if settings.texture_index == "Texture 1":
+                    tex_index = 1
+                    texture_prop = f3d_material.tex1
+                else:
+                    tex_index = 0
+                    texture_prop = f3d_material.tex0
+                texture_prop.tex = image
+
+                # Note that calling bpy.ops.material.update_f3d_nodes does not work,
+                # because overriding context here causes a crash for some reason.
+                # Thus we manually set properties here for now.
+                # This only handles everything that changes between image generations,
+                # so the initial setting may not be correct.
+                
+                # Set shader nodes
+                for i in range(1, 5):
+                    nodeName = f"Tex{tex_index}_{i}"
+                    if material.node_tree.nodes.get(nodeName):
+                        material.node_tree.nodes[nodeName].image = image
+
+                # Set dimensions
+                nodes = material.node_tree.nodes
+                uv_basis: bpy.types.ShaderNodeGroup = nodes["UV Basis"]
+                inputs = uv_basis.inputs
+
+                inputs[f"{tex_index} S TexSize"].default_value = image.size[0]
+                inputs[f"{tex_index} T TexSize"].default_value = image.size[1]
+
+            else:
+                print("Fast64: No f3d material found.")
+
         def image_writer(image, seed, upscaled=False):
             nonlocal last_data_block
             # Only use the non-upscaled texture, as upscaling is currently unsupported by the addon.
@@ -149,7 +227,8 @@ class DreamTexture(bpy.types.Operator):
                     bpy.data.images.remove(last_data_block)
                     last_data_block = None
                 image = pil_to_image(image, name=f"{seed}")
-                if node_tree is not None:
+                fast64_settings = context.scene.dream_textures_fast64
+                if node_tree is not None and not fast64_settings.enable:
                     nodes = node_tree.nodes
                     texture_node = nodes.new("ShaderNodeTexImage")
                     texture_node.image = image
@@ -157,6 +236,8 @@ class DreamTexture(bpy.types.Operator):
                 for area in screen.areas:
                     if area.type == 'IMAGE_EDITOR':
                         area.spaces.active.image = image
+                if fast64_settings.enable:
+                    apply_fast64(image)
                 window_manager.progress_end()
         
         def view_step(samples, step):
