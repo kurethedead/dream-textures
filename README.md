@@ -8,6 +8,10 @@
 * Experiment with AI image generation
 * Run the models on your machine to iterate without slowdowns from a service
 
+## Fast64
+Since there are no releases, you'll have to manually clone the stable_diffusion folder into your addon folder.
+This plugin only works with V5 materials for now.
+
 ## Installation
 1. Download the [latest version](https://github.com/carson-katri/dream-textures/releases/tag/0.0.4) from the Releases tab.
 2. Install the addon in Blender's preferences window.
