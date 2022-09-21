@@ -8,6 +8,21 @@ from ..operators.view_history import ViewHistory
 from ..operators.open_latest_version import OpenLatestVersion, new_version_available
 from ..operators.help_panel import HelpPanel
 
+def draw_fast64(self, context, layout):
+    settings = context.scene.dream_textures_fast64
+    fast64_box = layout.box()
+    fast64_box_heading = fast64_box.row()
+    fast64_box_heading.prop(settings, "enable")
+    fast64_box_heading.label(text="Fast64")
+    if settings.enable:
+        fast64_box_content = fast64_box.column()
+        fast64_box_content.row().prop(settings, "dimensions", text="Resize")
+        fast64_box_content.prop(settings, "texture_index", text="Index")
+        fast64_box_content.label(text="If in 3D Viewport, an object must be selected.")
+        fast64_box_content.label(text="The texture will be set on the active material.")
+        fast64_box_content.label(text="Visuals may not update correctly. (ex. clamp)", icon = "ERROR")
+        fast64_box_content.label(text="In this case try toggling a texture setting.")
+
 def draw_panel(self, context):
     layout = self.layout
     scene = context.scene
@@ -52,6 +67,8 @@ def draw_panel(self, context):
             init_img_box.template_ID(context.scene, "init_img", open="image.open")
             init_img_box.prop(scene.dream_textures_prompt, "strength")
             init_img_box.prop(scene.dream_textures_prompt, "fit")
+
+    draw_fast64(self, context, layout)
 
     advanced_box = layout.box()
     advanced_box_heading = advanced_box.row()
