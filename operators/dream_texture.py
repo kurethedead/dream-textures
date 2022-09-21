@@ -30,10 +30,6 @@ class DreamTexture(bpy.types.Operator):
     bl_label = "Dream Texture"
     bl_description = "Generate a texture with AI"
     bl_options = {'REGISTER'}
-
-    @classmethod
-    def poll(self, context):
-        return True
     
     def invoke(self, context, event):
         weights_installed = os.path.exists(WEIGHTS_PATH)
@@ -41,7 +37,7 @@ class DreamTexture(bpy.types.Operator):
             self.report({'ERROR'}, "Please complete setup in the preferences window.")
             return {"FINISHED"}
         else:
-            return context.window_manager.invoke_props_dialog(self)
+            return self.execute(context)
 
     def draw_fast64(self, context, layout):
         settings = context.scene.dream_textures_fast64
@@ -116,9 +112,6 @@ class DreamTexture(bpy.types.Operator):
             advanced_box.prop(scene.dream_textures_prompt, "cfgscale")
             advanced_box.prop(scene.dream_textures_prompt, "sampler")
             advanced_box.prop(scene.dream_textures_prompt, "show_steps")
-
-    def cancel(self, context):
-        pass
 
     async def dream_texture(self, context):
         history_entry = context.preferences.addons[StableDiffusionPreferences.bl_idname].preferences.history.add()
