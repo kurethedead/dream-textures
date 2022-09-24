@@ -129,7 +129,6 @@ class DreamTexture(bpy.types.Operator):
             generator.load_model()
 
         node_tree = context.material.node_tree if hasattr(context, 'material') else None
-        window_manager = context.window_manager
         screen = context.screen
         last_data_block = None
         scene = context.scene
@@ -194,6 +193,16 @@ class DreamTexture(bpy.types.Operator):
             else:
                 print("Fast64: No f3d material found.")
 
+        def step_progress_update(self, context):
+            if hasattr(context.area, "regions"):
+                for region in context.area.regions:
+                    if region.type == "UI":
+                        region.tag_redraw()
+            return None
+
+        bpy.types.Scene.dream_textures_progress = bpy.props.IntProperty(name="Progress", default=1, min=0, max=context.scene.dream_textures_prompt.steps + 1, update=step_progress_update)
+
+
         def image_writer(image, seed, upscaled=False):
             nonlocal last_data_block
             # Only use the non-upscaled texture, as upscaling is currently unsupported by the addon.
@@ -211,9 +220,13 @@ class DreamTexture(bpy.types.Operator):
                 for area in screen.areas:
                     if area.type == 'IMAGE_EDITOR':
                         area.spaces.active.image = image
+
                 if fast64_settings.enable:
                     apply_fast64(image)
-                window_manager.progress_end()
+
+                scene.dream_textures_progress = 0
+                scene.dream_textures_prompt.seed = str(seed) # update property in case seed was sourced randomly or from hash
+
         
         def view_step(samples, step):
             step_progress(samples, step)
@@ -228,7 +241,7 @@ class DreamTexture(bpy.types.Operator):
                     return # Only perform this on the first image editor found.
         
         def step_progress(samples, step):
-            window_manager.progress_update(step)
+            scene.dream_textures_progress = step + 1
 
         def save_temp_image(img, path=None):
             path = path if path is not None else tempfile.NamedTemporaryFile().name
@@ -251,7 +264,6 @@ class DreamTexture(bpy.types.Operator):
             return path
 
         def perform():
-            window_manager.progress_begin(0, scene.dream_textures_prompt.steps)
             init_img = scene.init_img if scene.dream_textures_prompt.use_init_img else None
             if scene.dream_textures_prompt.use_inpainting:
                 for area in screen.areas:
@@ -270,7 +282,7 @@ class DreamTexture(bpy.types.Operator):
                 # refinement steps per iteration
                 steps=scene.dream_textures_prompt.steps,
                 # seed for random number generator
-                seed=None if scene.dream_textures_prompt.seed == -1 else scene.dream_textures_prompt.seed,
+                seed=scene.dream_textures_prompt.get_seed(),
                 # width of image, in multiples of 64 (512)
                 width=scene.dream_textures_prompt.width,
                 # height of image, in multiples of 64 (512)
@@ -306,4 +318,16 @@ class DreamTexture(bpy.types.Operator):
         # async_task.add_done_callback(done_callback)
         ensure_async_loop()
 
+        return {'FINISHED'}
+
+class ReleaseGenerator(bpy.types.Operator):
+    bl_idname = "shade.dream_textures_release_generator"
+    bl_label = "Release Generator"
+    bl_description = "Releases the generator class to free up VRAM"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        global generator
+        generator = None
+        context.scene.dream_textures_progress = 0
         return {'FINISHED'}
